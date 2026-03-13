@@ -1,0 +1,58 @@
+import { FormEvent, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
+import { authApi } from "../api/authApi";
+import { PageLayout } from "../components/PageLayout";
+import { Button, ErrorText, Input, Label, SuccessText } from "../components/FormControls";
+
+export default function VerifyResetPage(): JSX.Element {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const email = useMemo(() => new URLSearchParams(location.search).get("email") ?? "", [location.search]);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: () => authApi.completePasswordReset(email, code, password),
+    onSuccess: () => {
+      setSuccess("Password reset complete.");
+      setTimeout(() => navigate("/login"), 800);
+    }
+  });
+
+  const onSubmit = (event: FormEvent): void => {
+    event.preventDefault();
+    mutation.mutate();
+  };
+
+  return (
+    <PageLayout title="Set New Password">
+      <form onSubmit={onSubmit}>
+        {mutation.isError && <ErrorText>{(mutation.error as Error).message}</ErrorText>}
+        {success && <SuccessText>{success}</SuccessText>}
+
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" type="email" value={email} readOnly />
+
+        <Label htmlFor="code">Verification Code</Label>
+        <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} required minLength={6} maxLength={6} />
+
+        <Label htmlFor="password">New Password</Label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={8}
+        />
+
+        <Button type="submit" disabled={mutation.isPending || !email}>
+          {mutation.isPending ? "Saving..." : "Reset Password"}
+        </Button>
+      </form>
+    </PageLayout>
+  );
+}
